@@ -14,7 +14,10 @@ from furi_control.fault_models import (
 
 class FaultInjector(Node):
     def get_vector_parameter(self, name):
-        values = np.array(self.get_parameter(name).value, dtype=np.float64)
+        values = np.asarray(self.get_parameter(name).value, dtype=np.float64)
+
+        if values.shape != (self.n,):
+            raise ValueError(f"{name} must have {self.n} values")
 
         return values
 
@@ -48,9 +51,9 @@ class FaultInjector(Node):
         self.clean_state_sub = self.create_subscription(JointState, "/furi/joint_states/clean", self.joint_state_callback, 10)
 
     def command_callback(self, msg: Float64MultiArray):
-        command = np.array(msg.data, dtype=np.float64)
+        command = np.asarray(msg.data, dtype=np.float64)
 
-        if len(command) != self.n:
+        if command.shape != (self.n,):
             self.get_logger().warning("Wrong sized command")
             return
 
@@ -58,56 +61,64 @@ class FaultInjector(Node):
             self.get_logger().warning("Command contains NaN or infinity")
             return
 
-        friction_enabled = bool(self.get_vector_parameter("friction_enabled"))
-        faults_enabled = bool(self.get_vector_parameter("faults_enabled"))
+        faults_enabled = bool(self.get_parameter("faults.enabled").value)
+        friction_enabled = bool(self.get_parameter("friction.enabled").value)
 
-        out = Float64MultiArray()        
+        applied = command
 
         if faults_enabled and friction_enabled:
-            viscous = np.array(self.get_vector_parameter("friction.viscous"), dtype=np.float64)
-            coulomb = np.array(self.get_vector_parameter("friction.coulomb"), dtype=np.float64)
-            smoothing_velocity = float(self.get_vector_parameter("friction.smoothing_velocity"))
-            config = FrictionConfig(viscous=viscous, coulomb=coulomb, smoothing_velocity=smoothing_velocity)
+            viscous = self.get_vector_parameter("friction.viscous")
+            coulomb = self.get_vector_parameter("friction.coulomb")
+            smoothing_velocity = float(
+                self.get_parameter("friction.smoothing_velocity").value
+            )
+
+            config = FrictionConfig(
+                viscous=viscous,
+                coulomb=coulomb,
+                smoothing_velocity=smoothing_velocity,
+            )
 
             applied = apply_friction_proxy(command, config)
-            out.data = applied.tolist()
 
-        elif (faults_enabled and (friction_enabled == False)) or faults_enabled == False:
-            out.data = command
-        
+        out = Float64MultiArray()
+        out.data = applied.tolist()
         self.command_pub.publish(out)
-        return
 
     def joint_state_callback(self, msg: JointState):
-        state = JointState()
-        state = msg.data
-
         faults_enabled = bool(self.get_parameter("faults.enabled").value)
         noise_enabled = bool(self.get_parameter("noise.enabled").value)
 
         out = JointState()
+        out.header = msg.header
+        out.name = list(msg.name)
+        out.position = list(msg.position)
+        out.velocity = list(msg.velocity)
+        out.effort = list(msg.effort)
 
-        if faults_enabled == False or noise_enabled == False or (len(state.velocity) * len(state.position) <= 0):  
-            out.position = list(state.position)
-            out.velocity = list(state.velocity)
+        if not (faults_enabled and noise_enabled):
+            self.noisy_state_pub.publish(out)
+            return
 
-        elif noise_enabled == True and len(state.velocity) * len(state.position) > 0:
-            position = np.array(state.position, dtype=np.float64)
-            position_std = np.array(self.get_vector_parameter("noise.position_std"), dtype=np.float64)
-            noisy_position = add_gaussian_noise(position, position_std, self.rng)
-            
-            velocity = np.array(state.velocity, dtype=np.float64)
-            velocity_std = np.array(self.get_vector_parameter("noise.velocity_std"), dtype=np.float64)
-            noisy_velocity = add_gaussian_noise(velocity, velocity_std, self.rng)
+        if len(msg.position) == self.n:
+            position = np.asarray(msg.position, dtype=np.float64)
+            position_std = self.get_vector_parameter("noise.position_std")
+            out.position = add_gaussian_noise(
+                position,
+                position_std,
+                self.rng,
+            ).tolist()
 
-            out.position = noisy_position.tolist()
-            out.velocity = noisy_velocity.tolist()
+        if len(msg.velocity) == self.n:
+            velocity = np.asarray(msg.velocity, dtype=np.float64)
+            velocity_std = self.get_vector_parameter("noise.velocity_std")
+            out.velocity = add_gaussian_noise(
+                velocity,
+                velocity_std,
+                self.rng,
+            ).tolist()
 
-        out.effort = list(state.effort)
-        out.header = state.header
-        out.name = list(state.name)
         self.noisy_state_pub.publish(out)
-        return
 
 def main(args=None):
     rclpy.init(args=args)
