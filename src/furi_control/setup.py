@@ -26,6 +26,7 @@ setup(
         'console_scripts': [
             "mock_robot = furi_control.mock_robot:main",
             "fault_injector = furi_control.fault_injector:main",
+            "trajectory_generator = furi_control.trajectory_generator:main",
         ],
     },
 )
