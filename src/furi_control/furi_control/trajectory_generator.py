@@ -148,8 +148,8 @@ class TrajectoryGenerator(Node):
         self.publisher.publish(message)
 
 
-def main(args: list[str] | None = None) -> None:
-    rclpy.init(args=args)
+def main():
+    rclpy.init()
     node = TrajectoryGenerator()
 
     try:

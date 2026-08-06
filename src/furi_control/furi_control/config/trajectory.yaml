@@ -1,0 +1,20 @@
+trajectory_generator:
+  ros__parameters:
+    joint_names:
+      - joint_1
+      - joint_2
+      - joint_3
+      - joint_4
+
+    update_rate_hz: 100.0
+    enabled: false
+    trajectory_type: sine
+
+    amplitude: [0.20, 0.15, 0.10, 0.10]
+    frequency: [0.10, 0.15, 0.20, 0.25]
+    phase: [0.0, 0.0, 0.0, 0.0]
+    offset: [0.0, 0.0, 0.0, 0.0]
+
+    velocity_limits: [1.0, 1.0, 1.0, 1.5]
+    duration_sec: 60.0
+    topic: /furi/command/raw
