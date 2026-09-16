@@ -1,0 +1,57 @@
+# Software-only ROS 2 pipeline:
+# trajectory_generator -> /furi/command/raw
+# /furi/command/raw -> fault_injector -> /furi/command/applied
+# /furi/command/applied -> mock_robot -> /furi/joint_states/clean
+# /furi/joint_states/clean -> fault_injector -> /furi/joint_states/noisy
+
+trajectory_generator:
+  ros__parameters:
+    use_sim_time: false
+    joint_names:
+      - joint_1
+      - joint_2
+      - joint_3
+      - joint_4
+    update_rate_hz: 100.0
+    enabled: false
+    trajectory_type: sine
+    amplitude: [0.2, 0.15, 0.1, 0.1]
+    frequency: [0.1, 0.15, 0.2, 0.25]
+    phase: [0.0, 0.0, 0.0, 0.0]
+    offset: [0.0, 0.0, 0.0, 0.0]
+    velocity_limits: [1.0, 1.0, 1.0, 1.5]
+    duration_sec: 0.0
+    topic: /furi/command/raw
+
+fault_injector:
+  ros__parameters:
+    use_sim_time: false
+    joint_names:
+      - joint_1
+      - joint_2
+      - joint_3
+      - joint_4
+    faults:
+      enabled: false
+    friction:
+      enabled: false
+      viscous: [0.0, 0.0, 0.0, 0.0]
+      coulomb: [0.0, 0.0, 0.0, 0.0]
+      smoothing_velocity: 0.02
+    noise:
+      enabled: false
+      position_std: [0.002, 0.002, 0.002, 0.002]
+      velocity_std: [0.005, 0.005, 0.005, 0.005]
+    random_seed: 42
+
+mock_robot:
+  ros__parameters:
+    use_sim_time: false
+    joint_names:
+      - joint_1
+      - joint_2
+      - joint_3
+      - joint_4
+    update_rate_hz: 100.0
+    command_timeout_sec: 0.2
+    velocity_limits: [1.0, 1.0, 1.0, 1.5]
