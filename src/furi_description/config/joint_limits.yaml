@@ -1,0 +1,35 @@
+dobot_magician_lite:
+  joint_names:
+    - joint_1
+    - joint_2
+    - joint_3
+    - joint_4
+
+  joint_limits:
+    joint_1:
+      lower: -2.35619449
+      upper: 2.35619449
+      velocity: 5.23598776
+      effort: 5.0
+      description: "Base yaw, -135 to +135 deg"
+
+    joint_2:
+      lower: -0.08726646
+      upper: 1.39626340
+      velocity: 5.23598776
+      effort: 5.0
+      description: "Rear arm pitch, -5 to +80 deg"
+
+    joint_3:
+      lower: -0.17453293
+      upper: 1.48352986
+      velocity: 5.23598776
+      effort: 5.0
+      description: "Forearm pitch, -10 to +85 deg"
+
+    joint_4:
+      lower: -2.53072742
+      upper: 2.53072742
+      velocity: 3.49065850
+      effort: 5.0
+      description: "End-tool rotation, -145 to +145 deg"

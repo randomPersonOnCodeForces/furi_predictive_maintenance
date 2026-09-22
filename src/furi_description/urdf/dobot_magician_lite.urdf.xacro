@@ -1,0 +1,261 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="dobot_magician_lite">
+
+  <!--
+    Dobot Magician Lite software-only kinematic model.
+
+    Purpose:
+    - Stage 3: URDF/Xacro, TF tree, RViz visualization, and kinematic sanity checks.
+    - No Gazebo plugins.
+    - No hardware drivers.
+    - No ros2_control yet.
+
+    Main public specs used:
+    - 4 DOF
+    - rear arm: 0.150 m
+    - forearm: 0.150 m
+    - max reach: 0.340 m
+    - J1: -135 to +135 deg
+    - J2: -5 to +80 deg
+    - J3: -10 to +85 deg
+    - J4: -145 to +145 deg
+
+    This is a clean educational model for software validation.
+    Refine link mesh geometry later after measuring the physical arm.
+  -->
+
+  <!-- Dimensions in meters -->
+
+  <xacro:property name="base_radius" value="0.073"/>
+  <xacro:property name="base_height" value="0.050"/>
+
+  <xacro:property name="pedestal_radius" value="0.042"/>
+  <xacro:property name="pedestal_height" value="0.070"/>
+
+  <xacro:property name="shoulder_height" value="0.095"/>
+  <xacro:property name="upper_arm_length" value="0.150"/>
+  <xacro:property name="forearm_length" value="0.150"/>
+  <xacro:property name="wrist_length" value="0.040"/>
+  <xacro:property name="tool_length" value="0.030"/>
+
+  <xacro:property name="arm_width" value="0.032"/>
+  <xacro:property name="arm_height" value="0.038"/>
+  <xacro:property name="wrist_radius" value="0.018"/>
+
+  <!-- Joint limits in radians -->
+  <xacro:property name="j1_lower" value="-2.35619449"/>
+  <xacro:property name="j1_upper" value="2.35619449"/>
+
+  <xacro:property name="j2_lower" value="-0.08726646"/>
+  <xacro:property name="j2_upper" value="1.39626340"/>
+
+  <xacro:property name="j3_lower" value="-0.17453293"/>
+  <xacro:property name="j3_upper" value="1.48352986"/>
+
+  <xacro:property name="j4_lower" value="-2.53072742"/>
+  <xacro:property name="j4_upper" value="2.53072742"/>
+
+  <!-- Speed limits from 300 deg/s for J1-J3 and 200 deg/s for J4 -->
+  <xacro:property name="j123_velocity" value="5.23598776"/>
+  <xacro:property name="j4_velocity" value="3.49065850"/>
+
+  <!-- Conservative placeholder effort limits for visualization / planning sanity only -->
+  <xacro:property name="j_effort" value="5.0"/>
+
+  <!-- Materials -->
+  <material name="dobot_white">
+    <color rgba="0.88 0.88 0.84 1.0"/>
+  </material>
+
+  <material name="dobot_gray">
+    <color rgba="0.45 0.45 0.45 1.0"/>
+  </material>
+
+  <material name="dobot_dark">
+    <color rgba="0.08 0.08 0.08 1.0"/>
+  </material>
+
+  <material name="dobot_blue">
+    <color rgba="0.05 0.28 0.70 1.0"/>
+  </material>
+
+  <!-- Root footprint -->
+  <link name="base_footprint"/>
+
+  <joint name="base_footprint_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Base -->
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 ${base_height / 2.0}" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="${base_radius}" length="${base_height}"/>
+      </geometry>
+      <material name="dobot_white"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 ${base_height / 2.0}" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="${base_radius}" length="${base_height}"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 ${base_height / 2.0}" rpy="0 0 0"/>
+      <mass value="1.0"/>
+      <inertia ixx="0.002" ixy="0.0" ixz="0.0" iyy="0.002" iyz="0.0" izz="0.003"/>
+    </inertial>
+  </link>
+
+  <!-- J1 yaw -->
+  <joint name="joint_1" type="revolute">
+    <parent link="base_link"/>
+    <child link="shoulder_link"/>
+    <origin xyz="0 0 ${base_height}" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="${j1_lower}" upper="${j1_upper}" effort="${j_effort}" velocity="${j123_velocity}"/>
+  </joint>
+
+  <link name="shoulder_link">
+    <visual>
+      <origin xyz="0 0 ${pedestal_height / 2.0}" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="${pedestal_radius}" length="${pedestal_height}"/>
+      </geometry>
+      <material name="dobot_blue"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 ${pedestal_height / 2.0}" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="${pedestal_radius}" length="${pedestal_height}"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 ${pedestal_height / 2.0}" rpy="0 0 0"/>
+      <mass value="0.6"/>
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <!-- J2 shoulder pitch -->
+  <joint name="joint_2" type="revolute">
+    <parent link="shoulder_link"/>
+    <child link="upper_arm_link"/>
+    <origin xyz="0 0 ${shoulder_height}" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="${j2_lower}" upper="${j2_upper}" effort="${j_effort}" velocity="${j123_velocity}"/>
+  </joint>
+
+  <link name="upper_arm_link">
+    <visual>
+      <origin xyz="${upper_arm_length / 2.0} 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="${upper_arm_length} ${arm_width} ${arm_height}"/>
+      </geometry>
+      <material name="dobot_white"/>
+    </visual>
+    <collision>
+      <origin xyz="${upper_arm_length / 2.0} 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="${upper_arm_length} ${arm_width} ${arm_height}"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="${upper_arm_length / 2.0} 0 0" rpy="0 0 0"/>
+      <mass value="0.35"/>
+      <inertia ixx="0.0002" ixy="0.0" ixz="0.0" iyy="0.0010" iyz="0.0" izz="0.0010"/>
+    </inertial>
+  </link>
+
+  <!-- J3 elbow pitch -->
+  <joint name="joint_3" type="revolute">
+    <parent link="upper_arm_link"/>
+    <child link="forearm_link"/>
+    <origin xyz="${upper_arm_length} 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="${j3_lower}" upper="${j3_upper}" effort="${j_effort}" velocity="${j123_velocity}"/>
+  </joint>
+
+  <link name="forearm_link">
+    <visual>
+      <origin xyz="${forearm_length / 2.0} 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="${forearm_length} ${arm_width} ${arm_height}"/>
+      </geometry>
+      <material name="dobot_white"/>
+    </visual>
+    <collision>
+      <origin xyz="${forearm_length / 2.0} 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="${forearm_length} ${arm_width} ${arm_height}"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="${forearm_length / 2.0} 0 0" rpy="0 0 0"/>
+      <mass value="0.30"/>
+      <inertia ixx="0.0002" ixy="0.0" ixz="0.0" iyy="0.0008" iyz="0.0" izz="0.0008"/>
+    </inertial>
+  </link>
+
+  <!-- J4 end-tool yaw / rotation -->
+  <joint name="joint_4" type="revolute">
+    <parent link="forearm_link"/>
+    <child link="wrist_link"/>
+    <origin xyz="${forearm_length} 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="${j4_lower}" upper="${j4_upper}" effort="${j_effort}" velocity="${j4_velocity}"/>
+  </joint>
+
+  <link name="wrist_link">
+    <visual>
+      <origin xyz="${wrist_length / 2.0} 0 0" rpy="0 1.57079632679 0"/>
+      <geometry>
+        <cylinder radius="${wrist_radius}" length="${wrist_length}"/>
+      </geometry>
+      <material name="dobot_gray"/>
+    </visual>
+    <collision>
+      <origin xyz="${wrist_length / 2.0} 0 0" rpy="0 1.57079632679 0"/>
+      <geometry>
+        <cylinder radius="${wrist_radius}" length="${wrist_length}"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="${wrist_length / 2.0} 0 0" rpy="0 0 0"/>
+      <mass value="0.15"/>
+      <inertia ixx="0.00005" ixy="0.0" ixz="0.0" iyy="0.00005" iyz="0.0" izz="0.00005"/>
+    </inertial>
+  </link>
+
+  <!-- Tool-center-point frame -->
+  <joint name="tool0_joint" type="fixed">
+    <parent link="wrist_link"/>
+    <child link="tool0"/>
+    <origin xyz="${wrist_length + tool_length} 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="tool0">
+    <visual>
+      <origin xyz="${tool_length / 2.0} 0 0" rpy="0 1.57079632679 0"/>
+      <geometry>
+        <cylinder radius="0.010" length="${tool_length}"/>
+      </geometry>
+      <material name="dobot_dark"/>
+    </visual>
+    <collision>
+      <origin xyz="${tool_length / 2.0} 0 0" rpy="0 1.57079632679 0"/>
+      <geometry>
+        <cylinder radius="0.010" length="${tool_length}"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="${tool_length / 2.0} 0 0" rpy="0 0 0"/>
+      <mass value="0.05"/>
+      <inertia ixx="0.00001" ixy="0.0" ixz="0.0" iyy="0.00001" iyz="0.0" izz="0.00001"/>
+    </inertial>
+  </link>
+
+</robot>
