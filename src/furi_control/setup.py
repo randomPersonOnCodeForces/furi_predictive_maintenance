@@ -27,6 +27,7 @@ setup(
             "mock_robot = furi_control.mock_robot:main",
             "fault_injector = furi_control.fault_injector:main",
             "trajectory_generator = furi_control.trajectory_generator:main",
+            "sim_robot_bridge = furi_control.sim_robot_bridge:main",
         ],
     },
 )

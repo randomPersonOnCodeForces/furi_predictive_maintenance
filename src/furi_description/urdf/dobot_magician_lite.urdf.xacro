@@ -1,6 +1,12 @@
 <?xml version="1.0"?>
-<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="dobot_magician_lite">
+<!-- Stage 4 Gazebo simulation control.
+      Position commands are provided by ros2_control through Gazebo.
+      The existing FURI software pipeline still owns:
+      /furi/command/raw -> /furi/command/applied -> simulated robot.
+-->
 
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="dobot_magician_lite">
+  <xacro:arg name="controllers_file" default=""/>
   <!--
     Dobot Magician Lite software-only kinematic model.
 
@@ -20,7 +26,6 @@
     - J3: -10 to +85 deg
     - J4: -145 to +145 deg
 
-    This is a clean educational model for software validation.
     Refine link mesh geometry later after measuring the physical arm.
   -->
 
@@ -257,5 +262,55 @@
       <inertia ixx="0.00001" ixy="0.0" ixz="0.0" iyy="0.00001" iyz="0.0" izz="0.00001"/>
     </inertial>
   </link>
+  <gazebo>
+    <plugin name="gazebo_ros2_control" filename="libgazebo_ros2_control.so">
+      <parameters>$(arg controllers_file)</parameters>
+    </plugin>
+  </gazebo>
+  <ros2_control name="GazeboSystem" type="system">
+    <hardware>
+      <plugin>gazebo_ros2_control/GazeboSystem</plugin>
+    </hardware>
+
+    <joint name="joint_1">
+      <command_interface name="position">
+        <param name="min">${j1_lower}</param>
+        <param name="max">${j1_upper}</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
+
+    <joint name="joint_2">
+      <command_interface name="position">
+        <param name="min">${j2_lower}</param>
+        <param name="max">${j2_upper}</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
+
+    <joint name="joint_3">
+      <command_interface name="position">
+        <param name="min">${j3_lower}</param>
+        <param name="max">${j3_upper}</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
+
+    <joint name="joint_4">
+      <command_interface name="position">
+        <param name="min">${j4_lower}</param>
+        <param name="max">${j4_upper}</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
+  </ros2_control>
 
 </robot>
