@@ -1,20 +1,21 @@
 <?xml version="1.0"?>
 <!-- Stage 4 Gazebo simulation control.
-      Position commands are provided by ros2_control through Gazebo.
+      Position commands (rad) are adapted from FURI velocities by sim_robot_bridge.
       The existing FURI software pipeline still owns:
       /furi/command/raw -> /furi/command/applied -> simulated robot.
 -->
 
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="dobot_magician_lite">
   <xacro:arg name="controllers_file" default=""/>
+  <xacro:arg name="enable_gazebo" default="false"/>
   <!--
     Dobot Magician Lite software-only kinematic model.
 
     Purpose:
     - Stage 3: URDF/Xacro, TF tree, RViz visualization, and kinematic sanity checks.
-    - No Gazebo plugins.
+    - Optional Gazebo Classic control enabled only by the simulation launch.
+    - Approximate masses, inertias and effort limits; no calibrated dynamics.
     - No hardware drivers.
-    - No ros2_control yet.
 
     Main public specs used:
     - 4 DOF
@@ -145,12 +146,14 @@
     </inertial>
   </link>
 
+  <!-- Positive simulation pitch lifts the arm above the tabletop. Hardware
+       angle conventions and the real parallelogram linkage are not modeled. -->
   <!-- J2 shoulder pitch -->
   <joint name="joint_2" type="revolute">
     <parent link="shoulder_link"/>
     <child link="upper_arm_link"/>
     <origin xyz="0 0 ${shoulder_height}" rpy="0 0 0"/>
-    <axis xyz="0 1 0"/>
+    <axis xyz="0 -1 0"/>
     <limit lower="${j2_lower}" upper="${j2_upper}" effort="${j_effort}" velocity="${j123_velocity}"/>
   </joint>
 
@@ -180,7 +183,7 @@
     <parent link="upper_arm_link"/>
     <child link="forearm_link"/>
     <origin xyz="${upper_arm_length} 0 0" rpy="0 0 0"/>
-    <axis xyz="0 1 0"/>
+    <axis xyz="0 -1 0"/>
     <limit lower="${j3_lower}" upper="${j3_upper}" effort="${j_effort}" velocity="${j123_velocity}"/>
   </joint>
 
@@ -262,8 +265,20 @@
       <inertia ixx="0.00001" ixy="0.0" ixz="0.0" iyy="0.00001" iyz="0.0" izz="0.00001"/>
     </inertial>
   </link>
+  <xacro:if value="$(arg enable_gazebo)">
+  <!-- Mount the tabletop robot without making the articulated links static. -->
+  <link name="world"/>
+  <joint name="world_mount" type="fixed">
+    <parent link="world"/>
+    <child link="base_footprint"/>
+  </joint>
   <gazebo>
     <plugin name="gazebo_ros2_control" filename="libgazebo_ros2_control.so">
+      <robot_param>robot_description</robot_param>
+      <robot_param_node>robot_state_publisher</robot_param_node>
+      <controller_manager_name>controller_manager</controller_manager_name>
+      <hold_joints>true</hold_joints>
+      <ros><namespace>/</namespace></ros>
       <parameters>$(arg controllers_file)</parameters>
     </plugin>
   </gazebo>
@@ -312,5 +327,6 @@
       <state_interface name="effort"/>
     </joint>
   </ros2_control>
+  </xacro:if>
 
 </robot>

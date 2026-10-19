@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-import time
-
 import numpy as np
-import rclpy
 from rclpy.node import Node
+from rcl_interfaces.msg import SetParametersResult
 from std_msgs.msg import Float64MultiArray
+
+
+from furi_control.runtime import run_node
 
 
 class TrajectoryGenerator(Node):
@@ -37,7 +38,7 @@ class TrajectoryGenerator(Node):
             self.get_parameter("update_rate_hz").value
         )
 
-        if self.update_rate_hz <= 0.0:
+        if not np.isfinite(self.update_rate_hz) or self.update_rate_hz <= 0.0:
             raise ValueError("update_rate_hz must be positive")
 
         self.amplitude = self._vector_parameter("amplitude")
@@ -52,7 +53,14 @@ class TrajectoryGenerator(Node):
         if np.any(self.velocity_limits <= 0.0):
             raise ValueError("velocity_limits must be positive")
 
-        self.start_ns = time.monotonic_ns()
+        trajectory_type = str(self.get_parameter("trajectory_type").value)
+        duration = float(self.get_parameter("duration_sec").value)
+        if trajectory_type not in ("sine", "constant", "square"):
+            raise ValueError("trajectory_type must be sine, constant, or square")
+        if not np.isfinite(duration) or duration < 0:
+            raise ValueError("duration_sec must be finite and nonnegative")
+        self.add_on_set_parameters_callback(self.validate_update)
+        self.start_ns = None
         self.publisher = self.create_publisher(
             Float64MultiArray,
             str(self.get_parameter("topic").value),
@@ -63,6 +71,19 @@ class TrajectoryGenerator(Node):
             1.0 / self.update_rate_hz,
             self.publish_command,
         )
+
+    def validate_update(self, parameters):
+        """Allow live enable/type/duration changes; cached settings require restart."""
+        for parameter in parameters:
+            name, value = parameter.name, parameter.value
+            if name == 'trajectory_type' and value not in ('sine', 'constant', 'square'):
+                return SetParametersResult(successful=False, reason='Unknown trajectory type')
+            if name == 'duration_sec' and (not np.isfinite(value) or value < 0):
+                return SetParametersResult(successful=False, reason='Invalid duration_sec')
+            if name not in ('enabled', 'trajectory_type', 'duration_sec', 'use_sim_time'):
+                return SetParametersResult(
+                    successful=False, reason='Restart to change cached settings')
+        return SetParametersResult(successful=True)
 
     def _vector_parameter(self, name: str) -> np.ndarray:
         values = np.asarray(
@@ -97,7 +118,10 @@ class TrajectoryGenerator(Node):
             self.get_parameter("duration_sec").value
         )
 
-        elapsed = (time.monotonic_ns() - self.start_ns) * 1e-9
+        now_ns = self.get_clock().now().nanoseconds
+        if self.start_ns is None or now_ns < self.start_ns:
+            self.start_ns = now_ns
+        elapsed = (now_ns - self.start_ns) * 1e-9
 
         if not enabled or (
             duration_sec > 0.0 and elapsed >= duration_sec
@@ -148,21 +172,15 @@ class TrajectoryGenerator(Node):
         self.publisher.publish(message)
 
 
-def main():
-    rclpy.init()
-    node = TrajectoryGenerator()
+def main(args=None):
+    """Run the trajectory and publish zero velocity before closing its context."""
+    def stop(node):
+        message = Float64MultiArray()
+        message.data = [0.0] * node.joint_count
+        node.publisher.publish(message)
 
-    try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        zero_message = Float64MultiArray()
-        zero_message.data = [0.0] * node.joint_count
-        node.publisher.publish(zero_message)
-        node.destroy_node()
-        rclpy.shutdown()
+    run_node(TrajectoryGenerator, args=args, stop=stop)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

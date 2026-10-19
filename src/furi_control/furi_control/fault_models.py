@@ -25,7 +25,9 @@ def apply_friction_proxy(
         + config.coulomb
         * np.tanh(velocity / config.smoothing_velocity)
     )
-    return velocity - opposing
+    # This is command attenuation, not a physical friction torque. A large
+    # proxy must stop a joint rather than reverse its requested direction.
+    return np.sign(velocity) * np.maximum(0.0, np.abs(velocity) - np.abs(opposing))
 
 
 def add_gaussian_noise(

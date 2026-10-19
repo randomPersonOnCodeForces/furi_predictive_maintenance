@@ -1,11 +1,21 @@
 sim_robot_bridge:
   ros__parameters:
-    joint_names:
-      - joint_1
-      - joint_2
-      - joint_3
-      - joint_4
+    joint_names: [joint_1, joint_2, joint_3, joint_4]
     command_input_topic: /furi/command/applied
     controller_command_topic: /position_controller/commands
     joint_state_input_topic: /joint_states
     clean_joint_state_topic: /furi/joint_states/clean
+    update_rate_hz: 100.0
+    command_timeout_sec: 0.2
+    feedback_timeout_sec: 0.2
+    max_step_sec: 0.02
+    lower_limits: [-2.35619449, -0.08726646, -0.17453293, -2.53072742]
+    upper_limits: [2.35619449, 1.39626340, 1.48352986, 2.53072742]
+    # Conservative command limits in rad/s, below URDF velocity limits.
+    velocity_limits: [1.0, 1.0, 1.0, 1.5]
+
+# The default Gazebo ROS /clock rate is 10 Hz. Match the 100 Hz adapter so
+# bounded integration does not discard 80% of each 0.1-second clock jump.
+gazebo:
+  ros__parameters:
+    publish_rate: 100.0

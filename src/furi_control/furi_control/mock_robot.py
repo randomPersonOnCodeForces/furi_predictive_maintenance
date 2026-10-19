@@ -3,10 +3,12 @@ from __future__ import annotations
 import time
 
 import numpy as np
-import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64MultiArray
+
+
+from furi_control.runtime import run_node
 
 
 class MockRobot(Node):
@@ -35,6 +37,16 @@ class MockRobot(Node):
             dtype=np.float64,
         )
 
+        if (not self.n or len(set(self.joint_names)) != self.n
+                or self.velocity_limits.shape != (self.n,)
+                or not np.all(np.isfinite(self.velocity_limits))
+                or np.any(self.velocity_limits <= 0)):
+            raise ValueError('Require unique joint names and positive finite velocity limits')
+        timeout = float(self.get_parameter("command_timeout_sec").value)
+        rate = float(self.get_parameter("update_rate_hz").value)
+        if not np.isfinite(timeout) or timeout <= 0 or not np.isfinite(rate) or rate <= 0:
+            raise ValueError('Timeout and update rate must be finite and positive')
+
         self.timeout_ns = int(
             float(self.get_parameter("command_timeout_sec").value) * 1e9
         )
@@ -61,6 +73,8 @@ class MockRobot(Node):
 
         if command.shape != (self.n,) or not np.all(np.isfinite(command)):
             self.get_logger().warning("Rejected command")
+            self.command.fill(0.0)
+            self.last_command_ns = None
             return
 
         self.command[:] = np.clip(
@@ -94,17 +108,11 @@ class MockRobot(Node):
         msg.velocity = self.velocity.tolist()
         self.publisher.publish(msg)
 
-def main() -> None:
-    rclpy.init()
-    node = MockRobot()
 
-    try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        node.destroy_node()
-        rclpy.shutdown()
+def main(args=None):
+    """Run the node with cooperative shutdown between callbacks."""
+    run_node(MockRobot, args=args)
+
 
 if __name__ == '__main__':
     main()
