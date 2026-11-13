@@ -145,3 +145,17 @@ Check that `/clock` advances and is configured to publish at 100 Hz, the simulat
 - [x] Automated package checks and reproducible documentation.
 
 Acceptance covers the tested software-only/headless environment. GUI operation, calibrated dynamics, physical friction degradation and hardware validation remain outside the verified scope.
+
+
+## Stage 6/7 predictive-maintenance workflow
+
+The `stage6-7-predictive-maintenance` branch adds an offline Stage 6 dataset generator and Stage 7 Isolation Forest baseline. The working dataset is synthetic and reproducible, using the same four-joint command attenuation and sensor-noise assumptions established in the software pipeline.
+
+```bash
+python3 -m pip install -r requirements-stage7.txt
+python3 tools/generate_stage6_dataset.py --rows 12000 --seed 42
+python3 tools/train_stage7_isolation_forest.py --seed 42
+python3 -m pytest -q src/furi_tests/test/test_stage6_7_offline.py
+```
+
+See [Stage 6/7 predictive maintenance](docs/stage6_7_predictive_maintenance.md) for the dataset schema, evaluation workflow, and hardware follow-up plan.
